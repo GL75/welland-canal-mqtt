@@ -62,9 +62,9 @@ def call_bridge_api() -> str:
         # Check if the HTTP status code is 200-299
         if response.status_code == 200:
             # Return a specific string message back to the caller
-            return f"***The bridge is {data['live']['status']}"
+            return f"The bridge is {data['live']['status']}"
         else:
-            return f"***Warning: Bridge responded with HTTP status code '{response.status_code}'"
+            return f"Warning: Bridge responded with HTTP status code '{response.status_code}'"
             
     except requests.exceptions.RequestException as e:
         # If the network fails entirely, return the error message as a string
@@ -87,6 +87,7 @@ def subscribe(client: mqtt_client):
         
         elif payload == "":
             # Safely catch and ignore reset message
+            logging.Warning("Message received, but condition not met. Ignoring.")
             pass    
             
         else:
