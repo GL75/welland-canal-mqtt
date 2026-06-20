@@ -4,8 +4,19 @@ import random
 import requests
 import json
 import os
+import logging
 from dotenv import load_dotenv
 from paho.mqtt import client as mqtt_client
+
+# Configure the logging framework
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler()  # Sends logs directly to standard output for Docker
+    ]
+)
 
 # Load environment variables from the local .env file
 load_dotenv()
@@ -27,9 +38,9 @@ client_id = f'subscribe-{random.randint(0, 100)}'
 def connect_mqtt() -> mqtt_client:
     def on_connect(client, userdata, flags, reason_code, properties):
         if reason_code == 0:
-            print("Connected to MQTT Broker!")
+            logging.info("Connected to MQTT Broker!")
         else:
-            print(f"Failed to connect, return code {reason_code}")
+            logging.error(f"Failed to connect, return code '{reason_code}'")
 
     client = mqtt_client.Client(
         client_id=client_id,
@@ -46,32 +57,32 @@ def call_bridge_api() -> str:
     try:
         response = requests.get(API_URL)
         data = response.json()
-        print(data["live"]["status"])
+        #print(data["live"]["status"])
                 
         # Check if the HTTP status code is 200-299
         if response.status_code == 200:
             # Return a specific string message back to the caller
-            return f"The bridge is {data['live']['status']}"
+            return f"***The bridge is {data['live']['status']}"
         else:
-            return f"Warning: Bridge responded with HTTP status code {response.status_code}"
+            return f"***Warning: Bridge responded with HTTP status code '{response.status_code}'"
             
     except requests.exceptions.RequestException as e:
         # If the network fails entirely, return the error message as a string
-        return f"Failure: Could not connect to Bridge API. Error details: {e}"
+        logging.error(f"Failure: Could not connect to Bridge API. Error details: '{e}'")
 
 def subscribe(client: mqtt_client):
     def on_message(client, userdata, msg):
         payload = msg.payload.decode().strip()
-        print(f"Received `{payload}` from `{msg.topic}` topic")
+        logging.info(f"Received '{payload}' from '{msg.topic}' topic")
         if payload == "request":
-            print(f"request detected")
+            logging.info(f"request detected")
             # Clear inbound topic 
             client.publish(TOPIC_LISTEN, "", qos=1)
             # Capture the string message returned by the API helper
             api_result_message = call_bridge_api()
             
             # Log or use the returned string
-            print(f"[API Log] {api_result_message}")
+            logging.info(f"[API Log] '{api_result_message}'")
             client.publish(TOPIC_STATUS, api_result_message, qos=1)
         
         elif payload == "":
@@ -79,7 +90,7 @@ def subscribe(client: mqtt_client):
             pass    
             
         else:
-            print("Message received, but condition not met. Ignoring.")
+            logging.Warning("Message received, but condition not met. Ignoring.")
     client.subscribe(TOPIC_LISTEN)
     client.on_message = on_message
 
